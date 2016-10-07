@@ -3,18 +3,20 @@ const https = require('https');
 const {EventEmitter} = require('events');
 const _ = require('lodash');
 const path = require('path');
+const httpAuthPayload = require('http-auth-payload');
+const qs = require('querystring');
 
 class ServiceProxy extends EventEmitter {
-    constructor({ssl = null, global = {}, services = {}} = {}) {
+    constructor({dir = process.cwd(), ssl = null, common = {}, services = {}} = {}) {
         super();
 
         this._server = null;
-        // this._auth = {};
         this._services = new Map();
         this._ssl = ssl;
         this._connectionsCount = 0;
+        this._protocol = 'htools';
 
-        this.addService(null, global);
+        this.addService(null, Object.assign(common));
         this.addServices(services);
 
         this.on('connection', this._onConnection.bind(this));
@@ -29,38 +31,62 @@ class ServiceProxy extends EventEmitter {
                 return;
             }
 
-            var serviceSocket = this._services.get(serviceName).socket;
+            req.auth = httpAuthPayload.parse(req.headers.authorization || '');
 
-            var headers = Object.assign({}, req.headers, {
-                'x-forwarded-for': req.headers.host,
-                'x-origin-url': req.url,
-            });
+            this._authorize(serviceName, req, res)
+            .then((status) => {
+                if (status !== true) {
+                    if (! res.finished) {
+                        res.writeHead(403, 'Access denied');
+                        res.end('Access denied');
+                    }
+                    return;
+                }
 
-            var proxyReq = http.request({
-                path: '/' + url.slice(1).join('/'),
-                method: req.method,
-                socketPath: serviceSocket,
-                headers,
-            });
+                var serviceSocket = this._services.get(serviceName).socket;
 
-            proxyReq.on('response', (proxyRes) => {
-                res.writeHead(proxyRes.statusCode, proxyRes.statusText, proxyRes.headers);
-                proxyRes.pipe(res);
-            });
+                var headers = Object.assign({}, req.headers, {
+                    'x-forwarded-for': req.headers.host,
+                    'x-origin-url': req.url,
+                });
 
-            proxyReq.on('error', (error) => {
+                var proxyReq = http.request({
+                    path: '/' + url.slice(1).join('/'),
+                    method: req.method,
+                    socketPath: serviceSocket,
+                    headers,
+                });
+
+                proxyReq.on('response', (proxyRes) => {
+                    res.writeHead(proxyRes.statusCode, proxyRes.statusText, proxyRes.headers);
+                    proxyRes.pipe(res);
+                });
+
+                proxyReq.on('error', (error) => {
+                    console.error(error);
+                    res.end('Error');
+                });
+
+
+                req.pipe(proxyReq);
+
+                res.socket.on('close', () => {
+                    this._disconnected();
+                });
+
+                this._connected();
+            })
+            .catch((error) => {
                 console.error(error);
-                res.end('Error');
+
+                if (res.finished) {
+                    return;
+                }
+
+                res.writeHead(500, 'Server error');
+                res.end('Server error');
             });
 
-
-            req.pipe(proxyReq);
-
-            res.socket.on('close', () => {
-                this._disconnected();
-            });
-
-            this._connected();
         });
 
         server.on('upgrade', (req, socket, upgradeHead) => {
@@ -78,59 +104,98 @@ class ServiceProxy extends EventEmitter {
             var url = req.url.slice(1).split('/');
             var serviceName = url[0];
 
+
             if (! this._services.has(serviceName)) {
                 res.writeHead(404, 'Service not found');
                 res.end('Service not found');
                 return;
             }
 
-            var serviceSocket = this._services.get(serviceName).socket;
+            var protocol = req.headers['sec-websocket-protocol'] || '';
 
-            if (req.method !== 'GET' || !req.headers.upgrade) {
-                socket.end();
-                return;
-            }
+            if (protocol.length) {
+                let [head, tail] = this._splitWebsocketProtocol(protocol)
+                let [name, params] = this._parseWebsocketParams(tail);
 
-            if (req.headers.upgrade.toLowerCase() !== 'websocket') {
-                socket.end();
-                return;
-            }
-
-            var proxyReq = http.request({
-                path: req.url,
-                method: req.method,
-                socketPath: serviceSocket,
-                headers: req.headers,
-            });
-
-            proxyReq.on('error', () => socket.end());
-            proxyReq.on('response', function (res) {
-                // if upgrade event isn't going to happen, close the socket
-                if (! res.upgrade) {
-                    socket.end();
+                if (name !== this._protocol) {
+                    head += ' ' + tail;
                 }
-            });
 
-            proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
-                proxySocket.on('error', () => socket.end());
-                socket.on('error', () => proxySocket.end());
-
-                res.writeHead(101, 'Switching Protocols', proxyRes.headers);
-                res.detachSocket(socket);
-
-                proxySocket.pipe(socket).pipe(proxySocket);
-            });
-
-            if (upgradeHead.length) {
-                socket.unshift(upgradeHead);
+                req.auth = httpAuthPayload.parse(params.authorization || '');
+                req.headers['sec-websocket-protocol'] = head;
+                res.setHeader('sec-websocket-protocol', protocol);
             }
 
-            proxyReq.end();
-            socket.on('close', () => {
-                this._disconnected();
+
+            this._authorize(serviceName, req, res)
+            .then((status) => {
+                if (status !== true) {
+                    if (! res.finished) {
+                        res.writeHead(403, 'Access denied');
+                        res.end('Access denied');
+                    }
+                    return;
+                }
+
+                var serviceSocket = this._services.get(serviceName).socket;
+
+                if (req.method !== 'GET' || !req.headers.upgrade) {
+                    socket.end();
+                    return;
+                }
+
+                if (req.headers.upgrade.toLowerCase() !== 'websocket') {
+                    socket.end();
+                    return;
+                }
+
+                var proxyReq = http.request({
+                    path: req.url,
+                    method: req.method,
+                    socketPath: serviceSocket,
+                    headers: req.headers,
+                });
+
+                proxyReq.on('error', () => socket.end());
+                proxyReq.on('response', function (res) {
+                    // if upgrade event isn't going to happen, close the socket
+                    if (! res.upgrade) {
+                        socket.end();
+                    }
+                });
+
+                proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+                    proxySocket.on('error', () => socket.end());
+                    socket.on('error', () => proxySocket.end());
+
+                    res.writeHead(101, 'Switching Protocols', proxyRes.headers);
+                    res.detachSocket(socket);
+
+                    proxySocket.pipe(socket).pipe(proxySocket);
+                });
+
+                if (upgradeHead.length) {
+                    socket.unshift(upgradeHead);
+                }
+
+                proxyReq.end();
+                socket.on('close', () => {
+                    this._disconnected();
+                });
+
+                this._connected();
+            })
+            .catch((error) => {
+                console.error(error);
+
+                if (res.finished) {
+                    return;
+                }
+
+                res.writeHead(500, 'Server error');
+                res.end('Server error');
             });
 
-            this._connected();
         });
     }
 
@@ -176,7 +241,7 @@ class ServiceProxy extends EventEmitter {
 
     getOrderedAuth(name) {
         var service = this.getService(name);
-        var global = this.getService(null);
+        var common = this.getService(null);
 
         if (service._auth) {
             return service._auth;
@@ -185,35 +250,30 @@ class ServiceProxy extends EventEmitter {
         var order;
 
         if (service.hasOwnProperty('order')) {
-            order = service.authOrder;
+            order = service.order;
         }
         else {
-            order = global.authOrder;
+            order = common.order;
         }
+
 
         if (! order) {
-            return () => {};
+            return [];
         }
 
-        var auth = Object.assign({}, global.auth, service.auth);
+        var auth = Object.assign({}, common.auth, service.auth);
 
         var result = order.reduce((result, authName) => {
             if (! auth.hasOwnProperty(authName)) {
-                throw new Error(`Invalid auth "${authName}" for service "${name}"`);
+                throw new Error(
+                    `Invalid auth "${authName}" for service "${name}"`
+                );
             }
 
             var item = auth[authName];
-            var factory;
+            var factory = this._loadAuthModule(item.use);
 
-            if (item.use.match(/^\.\//)) {
-                let authPath = path.resolve(this.dir, item.use);
-                factory = require(authPath);
-            }
-            else {
-                factory = require(auth.use);
-            }
-
-            result.push(authMethod);
+            result.push(factory(item));
 
             return result;
         }, []);
@@ -221,6 +281,47 @@ class ServiceProxy extends EventEmitter {
         service._auth = result;
 
         return result;
+    }
+
+    _authorize(serviceName, req, res) {
+        var queue = this.getOrderedAuth(serviceName);
+
+        var promise = Promise.resolve(null);
+
+        queue.forEach((item) => {
+            promise = promise.then((status) => {
+                if (status === true) {
+                    return status;
+                }
+
+                return item(req, res);
+            });
+        });
+
+        return promise;
+    }
+
+    _splitWebsocketProtocol(protocol) {
+        var parts = protocol.split(/\s+/);
+
+        return [parts.slice(0, parts.length - 2), parts[parts.length - 1]];
+    }
+
+    _parseWebsocketParams(params) {
+        let [name, query] = params.split('?');
+
+        query = qs.parse(query || '');
+
+        return [name, query];
+    }
+
+    _loadAuthModule(name, dir = '.') {
+        if (name.match(/^\.{1,2}\//)) {
+            return require(path.resolve(dir, name));
+        }
+        else {
+            return require(path.join(__dirname, 'auth', name + '.js'));
+        }
     }
 
     // addAuth(name, auth) {

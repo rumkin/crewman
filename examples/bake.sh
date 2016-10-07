@@ -33,10 +33,12 @@ task:spawn() {
 
     echo "START"
     echo ""
-    curl http://localhost:$PORT/service
+    # curl http://localhost:$PORT/service
+    curl -H 'Authorization: Bearer 549a08ccc76c141e939671e8977dc231a29c9041195ebca71359e59d6d9381f6' \
+        http://localhost:$PORT/service
     echo ""
 
-    PORT=$PORT node ws.js
+    PORT=$PORT node ws.js 549a08ccc76c141e939671e8977dc231a29c9041195ebca71359e59d6d9381f6
     echo ""
     echo "END"
 

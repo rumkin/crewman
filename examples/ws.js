@@ -1,8 +1,12 @@
 const WebSocket = require('ws');
+const qs = require('querystring');
 
 const PORT = process.env.PORT;
+const token = process.argv[2];
 
-const ws = new WebSocket(`ws://localhost:${PORT}/service`);
+const ws = new WebSocket(`ws://localhost:${PORT}/service`, 'htools?' + qs.stringify({
+    authorization: `Bearer ${token}`,
+}));
 
 ws.on('open', () => {
     ws.on('message', (message) => {

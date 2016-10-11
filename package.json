@@ -11,30 +11,30 @@
   "dependencies": {
     "http-auth-payload": "^0.3.1",
     "lodash": "^4.16.3",
-    "toml": "^2.3.0",
     "ws": "^1.1.1"
   },
   "devDependencies": {
     "istanbul": "^0.4.5",
     "mocha": "^3.1.0"
   },
-  "name": "service-proxy",
+  "name": "crewman",
   "version": "0.1.0",
-  "description": "Network service proxy",
+  "description": "Missed service proxy for distrubuted systems, devops and microservices",
   "bin": {
-    "service-proxy": "cli.js"
+    "crewman": "cli.js"
   },
   "directories": {
     "example": "examples",
-    "test": "test"
+    "test": "test",
+    "build": "build"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rumkin/service-proxy.git"
+    "url": "git+https://github.com/rumkin/crewman.git"
   },
   "author": "dev@rumk.in",
   "bugs": {
-    "url": "https://github.com/rumkin/service-proxy/issues"
+    "url": "https://github.com/rumkin/crewman/issues"
   },
-  "homepage": "https://github.com/rumkin/service-proxy#readme"
+  "homepage": "https://github.com/rumkin/crewman#readme"
 }

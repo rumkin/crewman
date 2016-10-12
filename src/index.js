@@ -1,1 +1,1 @@
-exports.ServiceProxy = require('./service-proxy.js')
+module.exports = require('./crewman.js');

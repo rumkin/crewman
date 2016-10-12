@@ -2,15 +2,19 @@
   "main": "build/index.js",
   "scripts": {
     "build": "[ -d build ] && rm -rf build; cp -r src build",
-    "start": "npm run build && node .",
+    "start": "npm run build && node bin/cli.js",
     "cov": "npm run build && istanbul cover node_modules/mocha/bin/_mocha -- -u exports -R spec test/**.spec.js",
     "test": "npm run build && mocha test/**.spec.js",
     "prepublish": "npm run build"
   },
   "license": "MIT",
   "dependencies": {
+    "bluebird": "^3.4.6",
+    "connect": "^3.5.0",
+    "hall": "^0.2.0",
     "http-auth-payload": "^0.3.1",
     "lodash": "^4.16.3",
+    "node-fetch": "^1.6.3",
     "ws": "^1.1.1"
   },
   "devDependencies": {

@@ -29,3 +29,5 @@ const server = http.createServer((req, res) => {
 
 
 server.listen(PORT);
+
+process.on('beforeExit', () => fs.unlinkSync(PORT));

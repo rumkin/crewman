@@ -22,7 +22,6 @@ class Crewman extends EventEmitter {
 
         const router = hall();
         const urls = new Map();
-        const parsers = new Map();
 
         _.forOwn(services, (service_, name) => {
             const service = this.normalizeService(service_);
@@ -38,8 +37,6 @@ class Crewman extends EventEmitter {
 
             const queue = this.getOrderedAuth(name, service);
             const parser = new hall.RouteParser(url + '/*tail');
-
-            parsers.set(parser, queue);
 
             router.all(parser, (req, res, next) => {
                 Promise.reduce(queue, (status, auth) => {

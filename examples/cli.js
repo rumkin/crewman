@@ -21,8 +21,12 @@ const crewman = new Crewman({
             bearer: {
                 token: '12345',
             },
+            urpc: {
+                url: 'ws://localhost:1980',
+                headers: ['authorization'],
+            },
         },
-        order: ['bearer'],
+        order: ['urpc'],
     },
     services: {
         echo: {

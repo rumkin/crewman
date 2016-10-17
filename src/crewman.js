@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const Promise = require('bluebird');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const connect = require('connect');
@@ -170,7 +171,11 @@ class Crewman extends EventEmitter {
             let item = auth[authName];
             let factory = this._loadAuthModule(item.use || authName);
 
-            result.push(factory(item));
+            if (typeof factory !== 'function') {
+                throw new Error('Factory is not a function');
+            }
+
+            result.push(factory(item, this));
 
             return result;
         }, []);
@@ -182,8 +187,14 @@ class Crewman extends EventEmitter {
         if (name.match(/^\.{1,2}\//)) {
             return require(path.resolve(dir, name));
         }
+
+        let localModule = path.join(__dirname, 'auth', name + '.js');
+
+        if (fs.existsSync(localModule)) {
+            return require(localModule);
+        }
         else {
-            return require(path.join(__dirname, 'auth', name + '.js'));
+            return require(name);
         }
     }
 

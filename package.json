@@ -1,5 +1,9 @@
 {
+  "name": "crewman",
+  "version": "0.1.0",
+  "description": "Missed service proxy for distrubuted systems, devops and microservices",
   "main": "build/index.js",
+  "license": "MIT",
   "scripts": {
     "build": "[ -d build ] && rm -rf build; cp -r src build",
     "start": "npm run build && node bin/cli.js",
@@ -7,7 +11,9 @@
     "test": "npm run build && mocha test/**.spec.js",
     "prepublish": "npm run build"
   },
-  "license": "MIT",
+  "bin": {
+    "crewman": "cli.js"
+  },
   "dependencies": {
     "argentum": "^0.6.0",
     "bluebird": "^3.4.6",
@@ -17,17 +23,12 @@
     "http-auth-payload": "^0.3.1",
     "lodash": "^4.16.3",
     "node-fetch": "^1.6.3",
+    "urpc": "^1.2.2",
     "ws": "^1.1.1"
   },
   "devDependencies": {
     "istanbul": "^0.4.5",
     "mocha": "^3.1.0"
-  },
-  "name": "crewman",
-  "version": "0.1.0",
-  "description": "Missed service proxy for distrubuted systems, devops and microservices",
-  "bin": {
-    "crewman": "cli.js"
   },
   "directories": {
     "example": "examples",

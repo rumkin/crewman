@@ -37,7 +37,7 @@ class Crewman extends EventEmitter {
             urls.set(url, name);
 
             const queue = this.getOrderedAuth(name, service);
-            const parser = new hall.RouteParser(url + '/*tail');
+            const parser = new hall.RouteParser(url + '(/*tail)');
 
             router.all(parser, (req, res, next) => {
                 Promise.reduce(queue, (status, auth) => {
@@ -60,21 +60,40 @@ class Crewman extends EventEmitter {
                         delete req.headers['x-user'];
                     }
 
-                    var serviceSocket = service.socket;
+                    const tail = req.params.tail || '/';
 
-                    var headers = Object.assign({}, req.headers, {
+                    const headers = Object.assign({}, req.headers, {
                         'x-forwarded-for': req.headers.host,
                         'x-origin-url': req.url,
-                        'x-origin-url-prefix': req.url.slice(-req.params.tail.length),
-                        'x-origin-url-postfix': req.params.tail,
+                        'x-origin-url-prefix': req.url.slice(-tail.length),
+                        'x-origin-url-postfix': tail,
                     });
 
-                    var proxyReq = http.request({
-                        path: '/' + req.params.tail,
+                    const subPath = tail;
+                    if (service.hasOwnProperty('path')) {
+                        if (service.overridePath) {
+                            subPath = service.path;
+                        }
+                        else {
+                            subPath = service.path + subPath;
+                        }
+                    }
+
+                    const params = {
+                        path: subPath,
                         method: req.method,
-                        socketPath: serviceSocket,
                         headers,
-                    });
+                    };
+
+                    if (service.hasOwnProperty('socket')) {
+                        params.socketPath = service.socket;
+                    }
+                    else {
+                        params.hostname = service.hostname;
+                        params.port = service.port;
+                    }
+
+                    var proxyReq = http.request(params);
 
                     proxyReq.on('response', (proxyRes) => {
                         res.writeHead(proxyRes.statusCode, proxyRes.statusText, proxyRes.headers);

@@ -7,6 +7,7 @@
 * Add service redirect via TCP and unix sockets.
 * Add path overriding and configuration.
 * Read file system.
+* Make web socket works.
 
 ### v0.1.0
 

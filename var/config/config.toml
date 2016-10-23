@@ -1,0 +1,37 @@
+# Authentication types
+[auth]
+
+[auth.basic]
+
+use = "basic"
+user = "username"
+password = "12345678"
+
+[auth.bearer]
+
+use = "bearer"
+token = "12345"
+
+# [auth.urpc]
+#
+# use = "urpc"
+# host = "localhost"
+# port = 4444
+
+[groups]
+
+# Default group is using when service group is not defined
+default = "private"
+
+# Group with public access allow not authenticated users.
+[groups.public]
+
+# Authentication order
+order = "urpc"
+authOnly = false
+
+# Group with public access denied not authenticated users.
+[groups.private]
+
+order = "bearer"
+authOnly = true

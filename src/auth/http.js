@@ -9,7 +9,12 @@ module.exports = function(options) {
             }),
         })
         .then(
-            (res) => (res.status === 200)
+            (res) => {
+                if (res.status === 200) {
+                    req.headers['x-user'] = res.headers.get('x-user');
+                    return true;
+                }
+            }
         );
     };
 };

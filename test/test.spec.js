@@ -13,6 +13,7 @@ describe('Crewman', () => {
     const services = {};
     const echoSocket = '/tmp/service.sock';
     const urpcPort = 44466;
+    const wsPort = 44467;
 
     // Configure unix socket echo server
     before(() => {
@@ -36,6 +37,21 @@ describe('Crewman', () => {
 
         service.listen();
         services.httpEcho = service;
+    });
+
+    // Configure web socket echo server
+    before(() => {
+        const service = new ws.Server({
+            port: wsPort
+        });
+
+        service.on('connection', (conn) => {
+            conn.on('message', (message) => {
+                conn.send(message);
+            });
+        });
+
+        services.wsEcho = service;
     });
 
     // Configure URPC auth server
@@ -102,6 +118,12 @@ describe('Crewman', () => {
                     order: ['bearer'],
                     host: 'localhost',
                     port: services.httpEcho.address().port,
+                },
+
+                'ws-echo': {
+                    order: ['bearer'],
+                    host: 'localhost',
+                    port: wsPort,
                 },
 
                 urpc: {
@@ -178,6 +200,30 @@ describe('Crewman', () => {
         });
     });
 
+    it('Should pass echo request with bearer auth to ws service', () => {
+        const port = server.address().port;
+        const url = `http://localhost:${port}/ws-echo?__AUTH__=bearer%2012345`;
+        const body = 'Hello';
+
+        return new Promise((resolve, reject) => {
+            let conn = ws.connect(url);
+
+            conn.on('open', () => {
+                conn.on('message', (msg) => {
+                    conn.close();
+                    resolve(msg);
+                });
+
+                conn.send(body);
+            });
+
+            conn.on('error', reject);
+        })
+        .then((result) => {
+            assert.equal(body, result, 'Result equals');
+        });
+    });
+
     it('Should not pass echo request with bearer auth to socket service', () => {
         const port = server.address().port;
         const url = `http://localhost:${port}/echo`;
@@ -194,14 +240,14 @@ describe('Crewman', () => {
         });
     });
 
-    it('Should pass echo request with urpc auth to socket service', () => {
+    it('Should not pass echo request with urpc auth to socket service', () => {
         const port = server.address().port;
         const url = `http://localhost:${port}/urpc`;
         const body = 'hello';
         return fetch(url, {
             method: 'POST',
             headers: {
-                authorization: 'bearer not a valid bearer',
+                authorization: 'no-bearer',
             },
             body,
         })
@@ -210,19 +256,33 @@ describe('Crewman', () => {
         });
     });
 
-    it('Should pass echo request with bearer auth to http service', () => {
+    it('Should not pass echo request with bearer auth to http service', () => {
         const port = server.address().port;
         const url = `http://localhost:${port}/http-echo`;
         const body = 'hello';
         return fetch(url, {
             method: 'POST',
             headers: {
-                authorization: 'bearer not a valid bearer',
+                authorization: 'no-bearer',
             },
             body,
         })
         .then((res) => {
             assert.equal(res.status, 403, 'Status is 403');
+        });
+    });
+
+    it('Should not pass echo request with bearer auth to ws service', () => {
+        const port = server.address().port;
+        const url = `http://localhost:${port}/ws-echo?__AUTH__=no-bearer`;
+
+        return new Promise((resolve, reject) => {
+            let conn = ws.connect(url);
+
+            conn.on('error', resolve);
+        })
+        .then((result) => {
+            assert.ok((result + '').match(/403/), 'Server response with 403');
         });
     });
 });

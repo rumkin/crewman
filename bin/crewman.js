@@ -38,24 +38,3 @@ program.parse(process.argv);
 if (process.argv.length === 2) {
     program.outputHelp();
 }
-
-// const camelcase = require('camelcase');
-// const argv = process.argv.slice(2);
-// const cliAction = camelcase(argv.shift());
-//
-// const actions = {
-//     up(argv) {
-//         require('./cli-up.js')([...argv], Object.assign({}, process.env));
-//     },
-//
-//     usage(argv) {
-//         console.log(`Usage is: crewman <action> [options]\nAvailable actions: up, usage.`);
-//     }
-// };
-//
-// if (actions.hasOwnProperty(cliAction)) {
-//     actions[cliAction](argv);
-// }
-// else {
-//     actions.usage(argv);
-// }

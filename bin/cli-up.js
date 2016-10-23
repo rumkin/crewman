@@ -11,6 +11,7 @@ module.exports = function(argv, env) {
         aliases: {
             d: 'debug',
             v: 'verbose',
+            n: 'noTcp',
         },
         defaults: {
             debug: env.DEBUG === '1',
@@ -18,6 +19,7 @@ module.exports = function(argv, env) {
             dir: env.DIR || '/var/apps/crewman',
             port: env.PORT || 4444,
             socket: env.SOCKET || '/var/run/crewman.sock',
+            noTcp: env.NO_TCP === '1',
         },
     });
 
@@ -92,14 +94,20 @@ module.exports = function(argv, env) {
     crewman.start();
 
     // TCP socket listener
-    const server = net.createServer((conn) => crewman.emit('connection', conn));
+    if (! args.noTcp) {
+        const server = net.createServer(
+            (conn) => crewman.emit('connection', conn)
+        );
 
-    server.listen(PORT, () => {
-        VERBOSE && console.log('Listening localhost:%s', PORT);
-    });
+        server.listen(PORT, () => {
+            VERBOSE && console.log('Listening localhost:%s', PORT);
+        });
+    }
 
     // Unix socket listener
-    const local = net.createServer((conn) => crewman.emit('connection', conn));
+    const local = net.createServer(
+        (conn) => crewman.emit('connection', conn)
+    );
 
     local.listen(SOCKET);
 };

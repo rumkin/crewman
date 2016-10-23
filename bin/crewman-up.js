@@ -1,4 +1,3 @@
-const argentum = require('argentum');
 const fs = require('fs');
 const path = require('path');
 const toml = require('toml');
@@ -6,27 +5,11 @@ const _ = require('lodash');
 const Crewman = require('..');
 const net = require('net');
 
-module.exports = function(argv, env) {
-    const args = argentum.parse(argv, {
-        aliases: {
-            d: 'debug',
-            v: 'verbose',
-            n: 'noTcp',
-        },
-        defaults: {
-            debug: env.DEBUG === '1',
-            verbose: env.VERBOSE === '1',
-            dir: env.DIR || '/var/apps/crewman',
-            port: env.PORT || 4444,
-            socket: env.SOCKET || '/var/run/crewman.sock',
-            noTcp: env.NO_TCP === '1',
-        },
-    });
-
-    const dir = path.resolve(process.cwd(), args.dir);
-    const PORT = argv[0] || args.port;
+module.exports = function(args) {
+    const dir = args.config;
+    const PORT = args.port;
     const VERBOSE = args.verbose;
-    const DEBUG = args.DEBUG;
+    const SOCKET = args.socket;
 
     const config = requireToml(path.join(dir, 'config.toml'));
     const aliases = [];
@@ -94,7 +77,7 @@ module.exports = function(argv, env) {
     crewman.start();
 
     // TCP socket listener
-    if (! args.noTcp) {
+    if (args.tcp) {
         const server = net.createServer(
             (conn) => crewman.emit('connection', conn)
         );
@@ -105,11 +88,22 @@ module.exports = function(argv, env) {
     }
 
     // Unix socket listener
+    fs.existsSync(SOCKET) && fs.unlinkSync(SOCKET);
+
     const local = net.createServer(
         (conn) => crewman.emit('connection', conn)
     );
 
-    local.listen(SOCKET);
+    local.listen(SOCKET, () => {
+        process.on('exit', () => {
+            VERBOSE && console.info('Remove socket:', SOCKET);
+            fs.existsSync(SOCKET) && fs.unlinkSync(SOCKET);
+        });
+
+        process.on('SIGINT', () => {
+            process.exit();
+        });
+    });
 };
 
 function listFilesByExt(dir, ext) {

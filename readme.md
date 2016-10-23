@@ -1,12 +1,12 @@
-# Service Proxy
+# Crewman
 
-This proxy server is made to implement web os components to manipulate operation
-system and monitor data. It work like Nginx but for microservices.
+Crewman is a microservice framework for DevOps and web applications. It provides
+user authorization and service stacking.
 
 ## Concept
 
-Just place socket file into `/var/service-proxy/service-name.sock` and get
-access to it from web as `http://your-host:4444/service-name/`.
+Run crewman. Put into `/var/crewman/services` service configuration like
+`service.toml`. And access to it from network as `http://127.0.0.1:4444/service/`.
 
 ## License
 

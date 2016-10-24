@@ -9,9 +9,9 @@ const https = require('https');
 const connect = require('connect');
 const Route = require('route-parser');
 const httpAuthPayload = require('http-auth-payload');
-// const qs = require('querystring');
 const URL = require('url');
 const {EventEmitter} = require('events');
+
 
 class Crewman extends EventEmitter {
     constructor({dir = process.cwd(), ssl = null, common = {}, services = {}} = {}) {
@@ -353,11 +353,19 @@ class Crewman extends EventEmitter {
         this._interval = null;
     }
 
+    _getAddress(address) {
+        let match = address.match(/([^:]+)$/);
+        if (match) {
+            return match[1];
+        }
+    }
+
     _createProxyRequest(req, service) {
         const tail = req.params.tail || '/';
 
         const headers = Object.assign({}, req.headers, {
-            'x-forwarded-for': req.headers.host,
+            'x-forwarded-for': req.connection.remoteAddress,
+            'x-origin-host': req.headers.host,
             'x-origin-url': req.url,
             'x-origin-url-prefix': req.url.slice(-tail.length),
             'x-origin-url-postfix': tail,

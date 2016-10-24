@@ -11,6 +11,7 @@
 * [ ] Cut specified headers.
 * [ ] Skip authentication from local/trusted networks.
 * [ ] Add sessions.
+* [ ] Add static files middleware.
 
 ### v0.4.0
 

@@ -14,13 +14,14 @@ const {EventEmitter} = require('events');
 
 
 class Crewman extends EventEmitter {
-    constructor({dir = process.cwd(), ssl = null, common = {}, services = {}} = {}) {
+    constructor({dir = process.cwd(), origins, ssl = null, common = {}, services = {}} = {}) {
         super();
 
         this.dir = dir;
         this._ssl = ssl;
         this._common = common;
         this._connectionsCount = 0;
+        this._origins = origins;
 
         const urls = new Map();
         const routes = new Map();
@@ -69,6 +70,10 @@ class Crewman extends EventEmitter {
                 return auth(req, res);
             }, false)
             .then((status) => {
+                if (res.finished) {
+                    return;
+                }
+
                 if (! status) {
                     if (service.authOnly !== false) {
                         res.statusCode = 403;
@@ -179,6 +184,10 @@ class Crewman extends EventEmitter {
                 return auth(req, res);
             }, false)
             .then((status) => {
+                if (res.finished) {
+                    return;
+                }
+
                 if (! status) {
                     if (service.authOnly !== false) {
                         res.statusCode = 403;

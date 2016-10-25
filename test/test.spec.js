@@ -105,12 +105,15 @@ describe('Crewman', () => {
                         url: `ws://localhost:${urpcPort}`,
                         headers: ['authorization'],
                     },
+                    cors: {
+                        origins: '*.local',
+                    }
                 },
                 order: ['bearer'],
             },
             services: {
                 echo: {
-                    order: ['bearer'],
+                    order: ['cors', 'bearer'],
                     socket: echoSocket,
                 },
 
@@ -283,6 +286,44 @@ describe('Crewman', () => {
         })
         .then((result) => {
             assert.ok((result + '').match(/403/), 'Server response with 403');
+        });
+    });
+
+    it('Should pass CORS request', () => {
+        const port = server.address().port;
+        const url = `http://localhost:${port}/echo`;
+        const body = 'hello';
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                authorization: 'bearer 12345',
+                origin: 'http://test.local'
+            },
+            body,
+        })
+        .then((res) => {
+            assert.equal(res.status, 200, 'Status is 200');
+            return res.text();
+        })
+        .then((text) => {
+            assert.equal(text, body, `Result body is "${body}"`);
+        });
+    });
+
+    it('Should not pass CORS request', () => {
+        const port = server.address().port;
+        const url = `http://localhost:${port}/echo`;
+        const body = 'hello';
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                authorization: 'bearer 12345',
+                origin: 'http://test.aware',
+            },
+            body,
+        })
+        .then((res) => {
+            assert.equal(res.status, 403, 'Status is 403');
         });
     });
 });

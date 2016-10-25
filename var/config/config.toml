@@ -1,6 +1,12 @@
 # Authentication types
 [auth]
 
+[auth.cors]
+
+use = "cors"
+# Allow CORS from any host
+origins = "*"
+
 [auth.basic]
 
 use = "basic"
@@ -12,12 +18,6 @@ password = "12345678"
 use = "bearer"
 token = "12345"
 
-# [auth.urpc]
-#
-# use = "urpc"
-# host = "localhost"
-# port = 4444
-
 [groups]
 
 # Default group is using when service group is not defined
@@ -27,7 +27,7 @@ default = "private"
 [groups.public]
 
 # Authentication order
-order = "urpc"
+order = "cors,bearer"
 authOnly = false
 
 # Group with public access denied not authenticated users.
